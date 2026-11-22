@@ -10,6 +10,18 @@ export function formatInr(minor: number): string {
   return `₹${formatted}`;
 }
 
+export function rupeesToMinor(rupees: number): number {
+  return Math.round(rupees * 100);
+}
+
+export function wholeRupeesFromMinor(minor: number): number {
+  return Number(formatInr(minor).replace(/[^\d.]/g, ""));
+}
+
+export function maskDigitRuns(text: string): string {
+  return text.replace(/\d{12,}/g, "••••");
+}
+
 function parts(date: Date, options: Intl.DateTimeFormatOptions) {
   const list = new Intl.DateTimeFormat("en-US", {
     timeZone: TIME_ZONE,

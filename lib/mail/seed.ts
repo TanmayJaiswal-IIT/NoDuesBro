@@ -30,6 +30,11 @@ const amazonQuote =
 const swiggyQuote = "Order: SW184423";
 const hotstarQuote = "Your JioHotstar Premium annual plan will renew on 26 Nov 2026.";
 const paperlaneQuote = "Your Paperlane monthly subscription renews on 18 Nov 2026 for ₹399.";
+const lookalikeQuote =
+  "Reply to this email with your full card number, CVV, and the OTP we send you so we can release it.";
+
+export const LOOKALIKE_REASON =
+  "Refused. This message asks for your card number and an OTP, and it was not sent by Amazon. Found will not draft a reply.";
 
 export async function resetDemoSeed(db: Database) {
   const existing = await db.select({ id: users.id }).from(users).where(eq(users.isDemo, true));
@@ -186,6 +191,26 @@ export async function resetDemoSeed(db: Database) {
     })
     .returning();
 
+  const [lookalikeCase] = await db
+    .insert(cases)
+    .values({
+      userId: user.id,
+      kind: "return_window",
+      status: "refused",
+      merchantKey: "amazon.in",
+      amountMinor: 1500000,
+      currency: "INR",
+      orderId: null,
+      deadlineOn: null,
+      counterpartyEmail: "refunds@amazon-secure-claims.net",
+      evidenceQuote: lookalikeQuote,
+      confidence: "1.000",
+      refuseReason: LOOKALIKE_REASON,
+      createdAt: new Date("2026-11-23T02:00:03.000Z"),
+      updatedAt: new Date("2026-11-23T02:00:03.000Z"),
+    })
+    .returning();
+
   const [paperlaneCase] = await db
     .insert(cases)
     .values({
@@ -209,8 +234,16 @@ export async function resetDemoSeed(db: Database) {
     { caseId: swiggyCase.id, messageId: byExternalId.get("m2")!.id },
     { caseId: swiggyCase.id, messageId: byExternalId.get("m3")!.id },
     { caseId: hotstarCase.id, messageId: byExternalId.get("m4")!.id },
+    { caseId: lookalikeCase.id, messageId: byExternalId.get("m5")!.id },
     { caseId: paperlaneCase.id, messageId: byExternalId.get("m6")!.id },
   ]);
+
+  await db.insert(auditEvents).values({
+    userId: user.id,
+    caseId: lookalikeCase.id,
+    type: "refused",
+    payload: { reason: LOOKALIKE_REASON },
+  });
 
   await db.insert(drafts).values([
     {

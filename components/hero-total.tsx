@@ -7,6 +7,7 @@ export function HeroTotal({ desk }: { desk: Desk }) {
         {desk.heroLabel}
       </h1>
       <p className="mt-3 text-sm text-[#6d6458]">{desk.subtitle}</p>
+      {desk.sentLine ? <p className="mt-1 text-sm text-[#1c1915]">{desk.sentLine}</p> : null}
     </section>
   );
 }

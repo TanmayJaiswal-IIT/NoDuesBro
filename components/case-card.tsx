@@ -1,3 +1,4 @@
+import { CaseActions } from "@/components/case-actions";
 import type { DeskCase } from "@/lib/desk/query";
 
 export function CaseCard({ item }: { item: DeskCase }) {
@@ -32,6 +33,7 @@ export function CaseCard({ item }: { item: DeskCase }) {
           <p className="mt-3 whitespace-pre-wrap">{item.draft.body}</p>
         </div>
       ) : null}
+      {item.draft ? <CaseActions caseId={item.id} draftId={item.draft.id} /> : null}
     </article>
   );
 }

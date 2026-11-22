@@ -39,6 +39,13 @@ export function getDb() {
   return globalForDb.foundDb;
 }
 
+export async function withTransaction<T>(run: (db: Database) => Promise<T>): Promise<T> {
+  const db = getDb() as unknown as {
+    transaction: (callback: (tx: Database) => Promise<T>) => Promise<T>;
+  };
+  return db.transaction(run);
+}
+
 export async function closeDb() {
   await globalForDb.foundPool?.end();
   globalForDb.foundPool = undefined;

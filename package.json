@@ -11,7 +11,9 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "dotenv -e .env.local -- drizzle-kit migrate",
     "db:seed": "dotenv -e .env.local -- tsx scripts/seed.ts",
-    "db:check": "dotenv -e .env.local -- tsx scripts/check-seed.ts"
+    "db:check": "dotenv -e .env.local -- tsx scripts/check-seed.ts",
+    "db:check:day2": "dotenv -e .env.local -- tsx scripts/check-day2.ts",
+    "db:check:day3": "dotenv -e .env.local -- tsx scripts/check-day3.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.2.1",

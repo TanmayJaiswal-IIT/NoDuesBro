@@ -1,8 +1,25 @@
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { getDb } from "../db";
-import { caseMessages, cases, drafts, mailboxes, messages, receipts, users } from "../db/schema";
+import {
+  approvals,
+  caseMessages,
+  cases,
+  drafts,
+  mailboxes,
+  messages,
+  receipts,
+  standingOrders,
+  users,
+} from "../db/schema";
 import { merchantLabels } from "../mail/content";
-import { formatDeskClock, formatDeskDay, formatInr, kolkataDateKey } from "../money";
+import {
+  formatDeskClock,
+  formatDeskDay,
+  formatInr,
+  kolkataDateKey,
+  maskDigitRuns,
+  wholeRupeesFromMinor,
+} from "../money";
 
 export type DeskCase = {
   id: string;
@@ -12,7 +29,7 @@ export type DeskCase = {
   deadlineLine: string;
   evidenceQuote: string;
   evidence: { fromName: string; fromAddress: string; subject: string }[];
-  draft: { to: string; subject: string; body: string } | null;
+  draft: { id: string; to: string; subject: string; body: string } | null;
 };
 
 export type DeskReceipt = {
@@ -21,6 +38,25 @@ export type DeskReceipt = {
   amountLabel: string;
   sentLabel: string;
   subject: string;
+  to: string;
+  body: string;
+  sentClock: string;
+  approvalClock: string | null;
+};
+
+export type DeskRefused = {
+  id: string;
+  senderName: string;
+  fromAddress: string;
+  amountLabel: string;
+  reason: string;
+};
+
+export type DeskOrders = {
+  returnHorizonDays: number;
+  renewalHorizonDays: number;
+  duplicateWindowHours: number;
+  ignoreUnderRupees: number;
 };
 
 export type Desk = {
@@ -28,7 +64,10 @@ export type Desk = {
   clockLabel: string;
   heroLabel: string;
   subtitle: string;
+  sentLine: string | null;
   cases: DeskCase[];
+  refused: DeskRefused[];
+  orders: DeskOrders;
   receipts: DeskReceipt[];
 };
 
@@ -68,7 +107,7 @@ export async function getDesk(): Promise<Desk> {
 
   const deskToday = kolkataDateKey(mailbox.deskNow);
 
-  const [heroRows, readyCases, sentRows, receiptRows] = await Promise.all([
+  const [heroRows, readyCases, refusedRows, orderRows, sentRows, receiptRows] = await Promise.all([
     db
       .select({
         total: sql<string>`coalesce(sum(${cases.amountMinor}), 0)`,
@@ -83,6 +122,20 @@ export async function getDesk(): Promise<Desk> {
       .orderBy(asc(cases.createdAt)),
     db
       .select({
+        id: cases.id,
+        amountMinor: cases.amountMinor,
+        reason: cases.refuseReason,
+        fromName: messages.fromName,
+        fromAddress: messages.fromAddress,
+      })
+      .from(cases)
+      .innerJoin(caseMessages, eq(caseMessages.caseId, cases.id))
+      .innerJoin(messages, eq(messages.id, caseMessages.messageId))
+      .where(and(eq(cases.userId, user.id), eq(cases.status, "refused")))
+      .orderBy(asc(cases.createdAt)),
+    db.select().from(standingOrders).where(eq(standingOrders.userId, user.id)).limit(1),
+    db
+      .select({
         amountMinor: receipts.amountMinor,
         sentAt: receipts.sentAt,
       })
@@ -95,13 +148,22 @@ export async function getDesk(): Promise<Desk> {
         merchantKey: cases.merchantKey,
         amountMinor: receipts.amountMinor,
         subject: receipts.subject,
+        toAddress: receipts.toAddress,
+        bodySnapshot: receipts.bodySnapshot,
         sentAt: receipts.sentAt,
+        approvedAt: approvals.approvedAt,
       })
       .from(receipts)
       .innerJoin(cases, eq(receipts.caseId, cases.id))
+      .leftJoin(approvals, eq(receipts.approvalId, approvals.id))
       .where(eq(cases.userId, user.id))
       .orderBy(asc(receipts.sentAt)),
   ]);
+
+  const orders = orderRows[0];
+  if (!orders) {
+    throw new Error("Standing orders are missing. Run npm run db:seed.");
+  }
 
   const hero = heroRows[0];
   const heroMinor = Number(hero?.total ?? 0);
@@ -114,7 +176,9 @@ export async function getDesk(): Promise<Desk> {
   const subtitle =
     sentTodayMinor === 0
       ? `you can still save · ${waitingCount} waiting · nothing sent today`
-      : `you can still save · ${waitingCount} waiting · ${formatInr(sentTodayMinor)} sent today`;
+      : `you can still save · ${waitingCount} waiting`;
+  const sentLine =
+    sentTodayMinor === 0 ? null : `${formatInr(sentTodayMinor)} sent · waiting on the merchant`;
 
   const caseIds = readyCases.map((row) => row.id);
   const [draftRows, evidenceRows] =
@@ -153,14 +217,19 @@ export async function getDesk(): Promise<Desk> {
       merchant: merchantLabels[row.merchantKey] ?? row.merchantKey,
       amountLabel: formatInr(row.amountMinor),
       deadlineLine: deadlineLine(row.kind, row.deadlineOn, evidence[0]?.receivedAt ?? null),
-      evidenceQuote: row.evidenceQuote,
+      evidenceQuote: maskDigitRuns(row.evidenceQuote),
       evidence: evidence.map((item) => ({
         fromName: item.fromName,
         fromAddress: item.fromAddress,
-        subject: item.subject,
+        subject: maskDigitRuns(item.subject),
       })),
       draft: draft
-        ? { to: draft.toAddress, subject: draft.subject, body: draft.body }
+        ? {
+            id: draft.id,
+            to: draft.toAddress,
+            subject: maskDigitRuns(draft.subject),
+            body: maskDigitRuns(draft.body),
+          }
         : null,
     };
   });
@@ -170,13 +239,31 @@ export async function getDesk(): Promise<Desk> {
     clockLabel: formatDeskClock(mailbox.deskNow),
     heroLabel: formatInr(heroMinor),
     subtitle,
+    sentLine,
     cases: deskCases,
+    refused: refusedRows.map((row) => ({
+      id: row.id,
+      senderName: row.fromName,
+      fromAddress: row.fromAddress,
+      amountLabel: formatInr(row.amountMinor),
+      reason: row.reason ?? "",
+    })),
+    orders: {
+      returnHorizonDays: orders.returnHorizonDays,
+      renewalHorizonDays: orders.renewalHorizonDays,
+      duplicateWindowHours: orders.duplicateWindowHours,
+      ignoreUnderRupees: wholeRupeesFromMinor(orders.renewalIgnoreUnderMinor),
+    },
     receipts: receiptRows.map((row) => ({
       id: row.id,
       merchant: merchantLabels[row.merchantKey] ?? row.merchantKey,
       amountLabel: formatInr(row.amountMinor),
       sentLabel: formatDeskDay(row.sentAt),
-      subject: row.subject,
+      subject: maskDigitRuns(row.subject),
+      to: row.toAddress,
+      body: maskDigitRuns(row.bodySnapshot),
+      sentClock: formatDeskClock(row.sentAt),
+      approvalClock: row.approvedAt ? formatDeskClock(row.approvedAt) : null,
     })),
   };
 }
