@@ -20,7 +20,7 @@ export function ReceiptList({
             </p>
             <p className="mt-1 text-sm text-[#3d3832]">&ldquo;{receipt.subject}&rdquo;</p>
             <p className="mt-2 text-sm text-[#6d6458]">
-              Sent from your inbox. Found cannot pull this back.
+              Sent from your inbox. NoDuesBro cannot pull this back.
             </p>
             <details className="mt-2 text-sm leading-6 text-[#1c1915]">
               <summary className="cursor-pointer text-[#6d6458]">Open receipt</summary>

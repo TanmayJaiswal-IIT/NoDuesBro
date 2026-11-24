@@ -27,11 +27,20 @@ function amountDigits(amountMinor: number): string {
   return Number.isInteger(rupees) ? String(rupees) : rupees.toFixed(2);
 }
 
-function containsAmountDigits(text: string, amountMinor: number): boolean {
+export function containsAmountDigits(text: string, amountMinor: number): boolean {
   return text.replace(/,/g, "").includes(amountDigits(amountMinor));
 }
 
-function currencyAmounts(text: string): number[] {
+export function textHasSecret(text: string): boolean {
+  return (
+    LONG_DIGIT_RUN.test(text) ||
+    SECRET_WORD.test(text) ||
+    UPI_PIN.test(text) ||
+    ONE_TIME_CODE.test(text)
+  );
+}
+
+export function currencyAmounts(text: string): number[] {
   const pattern =
     /(?:₹|Rs\.?|INR)\s*([0-9]{1,3}(?:,[0-9]{2,3})*|[0-9]+)(?:\.(\d{1,2}))?/gi;
   const amounts: number[] = [];
@@ -43,7 +52,7 @@ function currencyAmounts(text: string): number[] {
   return amounts;
 }
 
-function orderIds(text: string): string[] {
+export function orderIdsIn(text: string): string[] {
   return [...text.matchAll(/\b(?:\d{3}-\d{7}-\d{7}|[A-Z]{2,}\d{4,})\b/g)].map((match) => match[0]);
 }
 
@@ -53,13 +62,8 @@ export function evaluatePolicy(draft: PolicyDraft): PolicyResult {
   }
 
   const outbound = `${draft.subject}\n${draft.body}`;
-  if (
-    LONG_DIGIT_RUN.test(outbound) ||
-    SECRET_WORD.test(outbound) ||
-    UPI_PIN.test(outbound) ||
-    ONE_TIME_CODE.test(outbound)
-  ) {
-    return fail("This draft asks for a secret. Found will not send it.");
+  if (textHasSecret(outbound)) {
+    return fail("This draft asks for a secret. NoDuesBro will not send it.");
   }
 
   if (!draft.sourceText.includes(draft.evidenceQuote)) {
@@ -83,7 +87,7 @@ export function evaluatePolicy(draft: PolicyDraft): PolicyResult {
     }
   }
 
-  const unknownOrderId = orderIds(outbound).find((id) => !draft.sourceText.includes(id));
+  const unknownOrderId = orderIdsIn(outbound).find((id) => !draft.sourceText.includes(id));
   if (unknownOrderId) {
     return fail("The draft names an order id that is not in the source mail.");
   }

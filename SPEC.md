@@ -1,8 +1,8 @@
-# Found — Morning Desk
+# NoDuesBro — Morning Desk
 
 Product spec. Version 1. 22 November 2026. Built for the Homingo hackathon.
 
-Found is a morning desk for one job: money the person can still save. It reads mail, finds return windows, duplicate charges, and subscriptions about to renew, and puts a total on screen. Each case is a card with the email it read and the email it wants to send. Nothing is sent until the person presses Approve. The card then becomes a receipt.
+NoDuesBro is a morning desk for one job: money the person can still save. It reads mail, finds return windows, duplicate charges, and subscriptions about to renew, and puts a total on screen. Each case is a card with the email it read and the email it wants to send. Nothing is sent until the person presses Approve. The card then becomes a receipt.
 
 This document is the build contract for the 12 days. If a feature is not described here, it is out of the build.
 
@@ -18,7 +18,7 @@ The person in the demo is an ordinary user with rent-level money, not an executi
 
 **Demo persona.** Asha Menon, Bengaluru. One personal inbox. She misses return windows, pays a charge twice, and lets subscriptions renew because the email arrived on a busy day.
 
-**Live user (after the demo path works).** Someone who connects the same Gmail account they already use. Found reads it and sends only the message they approved, from that account.
+**Live user (after the demo path works).** Someone who connects the same Gmail account they already use. NoDuesBro reads it and sends only the message they approved, from that account.
 
 One user per desk in this version. No household, no shared approval, no second seat.
 
@@ -101,7 +101,7 @@ One page. No prompt box. Desktop layout for the demo:
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
-│ Found              Mon 23 Nov · 7:40am                    Asha │
+│ NoDuesBro          Mon 23 Nov · 7:40am                    Asha │
 │                                                                  │
 │  ₹4,484                                                          │
 │  you can still save · 3 waiting · nothing sent today            │
@@ -157,7 +157,7 @@ A waiting card shows, in this order:
 
 A refused card shows the merchant or sender, the amount if one was claimed, and the refuse reason in a full sentence. It has Dismiss. It has no draft and no Approve button.
 
-A receipt shows: sent time, amount, merchant, to-address, subject, the body that was sent, the evidence messages it was based on, and the approval time. Copy at the top of a receipt: **Sent from your inbox. Found cannot pull this back.**
+A receipt shows: sent time, amount, merchant, to-address, subject, the body that was sent, the evidence messages it was based on, and the approval time. Copy at the top of a receipt: **Sent from your inbox. NoDuesBro cannot pull this back.**
 
 ## 8. Case lifecycle
 
@@ -221,7 +221,7 @@ These cannot be turned off in the product:
 
 The seed refusal uses this sentence, and the same shape for any later refusal:
 
-> Refused. This message asks for your card number and an OTP, and it was not sent by Amazon. Found will not draft a reply.
+> Refused. This message asks for your card number and an OTP, and it was not sent by Amazon. NoDuesBro will not draft a reply.
 
 ### What the person can see about privacy
 
@@ -647,7 +647,7 @@ Build this only after `/demo` matches section 19.
 - Sync pulls the last 30 days, text bodies only, cap 200 messages.
 - Send uses the Gmail API as the user. One message, the approved draft, no attachments.
 - Disconnect deletes the refresh token and stops sync. Cases already stored remain until the person dismisses them.
-- The connect screen states both scopes in plain language: Found can read mail, and can send a message only after you approve that message.
+- The connect screen states both scopes in plain language: NoDuesBro can read mail, and can send a message only after you approve that message.
 
 If Gmail is unfinished on demo day, the judging route is still `/demo`. Do not block the demo on Google verification.
 
@@ -664,7 +664,7 @@ If Gmail is unfinished on demo day, the judging route is still `/demo`. Do not b
 | Mail send when connected | Gmail API |
 | Config | `vercel.ts` when the project is linked |
 
-Provision Neon and Clerk from the Vercel Marketplace (`vercel integration add neon` and `vercel integration add clerk`) when the Vercel CLI is available, then `vercel env pull`. Do not hand-roll a password system. Do not add Stripe. Found never charges the user and never pays a merchant.
+Provision Neon and Clerk from the Vercel Marketplace (`vercel integration add neon` and `vercel integration add clerk`) when the Vercel CLI is available, then `vercel env pull`. Do not hand-roll a password system. Do not add Stripe. NoDuesBro never charges the user and never pays a merchant.
 
 Local demo must run with the seed and no external account: `npm run dev`, open `/demo`. Model calls for the seed may be precomputed and committed as the resulting case rows, so the stage never waits on OpenAI and never fails if the API is down. Rebuilding those rows needs `OPENAI_API_KEY`. Keep the pipeline code in the repo and covered by a script that re-runs it on the seed messages.
 
@@ -756,9 +756,9 @@ Format INR from minor units in one function, `formatInr(249900)` → `₹2,499`.
 ## 23. Names
 
 - Hackathon: **Homingo**
-- Product: **Found**
+- Product: **NoDuesBro**
 - The screen: **Morning Desk**
 - The job: the refund clerk (return windows, duplicate charges, renewals)
 - The judging URL: `/demo`
 - The number judges should remember: **₹4,484**
-- Stage line: **Found ₹4,484**
+- Stage line: **NoDuesBro ₹4,484**

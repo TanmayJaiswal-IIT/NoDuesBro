@@ -1,5 +1,5 @@
 {
-  "name": "found",
+  "name": "noduesbro",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -13,15 +13,20 @@
     "db:seed": "dotenv -e .env.local -- tsx scripts/seed.ts",
     "db:check": "dotenv -e .env.local -- tsx scripts/check-seed.ts",
     "db:check:day2": "dotenv -e .env.local -- tsx scripts/check-day2.ts",
-    "db:check:day3": "dotenv -e .env.local -- tsx scripts/check-day3.ts"
+    "db:check:day3": "dotenv -e .env.local -- tsx scripts/check-day3.ts",
+    "db:check:day4": "dotenv -e .env.local -- tsx scripts/check-day4.ts",
+    "db:check:day5": "dotenv -e .env.local -- tsx scripts/check-day5.ts"
   },
   "dependencies": {
+    "@ai-sdk/openai": "^4.0.122",
     "@neondatabase/serverless": "^1.2.1",
+    "ai": "^7.0.181",
     "drizzle-orm": "^0.45.4",
     "next": "16.4.6",
     "pg": "^8.23.1",
     "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "react-dom": "19.3.0",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@tailwindcss/turbopack": "4.3.3",

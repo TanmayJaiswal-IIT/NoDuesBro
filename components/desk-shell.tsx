@@ -10,7 +10,7 @@ export function DeskShell({ desk, showReset = false }: { desk: Desk; showReset?:
     <main className="mx-auto min-h-full w-full max-w-5xl bg-[#f7f3ea] text-[#1c1915]">
       <header className="flex items-center justify-between px-6 py-5 sm:px-10">
         <div className="flex items-center gap-4">
-          <p className="text-sm font-semibold tracking-tight">Found</p>
+          <p className="text-sm font-semibold tracking-tight">NoDuesBro</p>
           {showReset ? (
             <form action={resetDemo}>
               <button type="submit" className="text-sm text-[#6d6458] underline">

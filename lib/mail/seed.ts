@@ -1,4 +1,4 @@
-import { eq, inArray } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import type { Database } from "../db";
 import {
   approvals,
@@ -14,6 +14,7 @@ import {
   standingOrders,
   users,
 } from "../db/schema";
+import { fileNewCandidates } from "../pipeline/run";
 import {
   DESK_NOW,
   DEMO_EMAIL,
@@ -25,16 +26,9 @@ import {
   swiggyDraft,
 } from "./content";
 
-const amazonQuote =
-  "You can return this item by 26 Nov 2026 for a refund to your original payment method.";
-const swiggyQuote = "Order: SW184423";
-const hotstarQuote = "Your JioHotstar Premium annual plan will renew on 26 Nov 2026.";
-const paperlaneQuote = "Your Paperlane monthly subscription renews on 18 Nov 2026 for ₹399.";
-const lookalikeQuote =
-  "Reply to this email with your full card number, CVV, and the OTP we send you so we can release it.";
+export { LOOKALIKE_REASON } from "../pipeline/rules";
 
-export const LOOKALIKE_REASON =
-  "Refused. This message asks for your card number and an OTP, and it was not sent by Amazon. Found will not draft a reply.";
+const paperlaneQuote = "Your Paperlane monthly subscription renews on 18 Nov 2026 for ₹399.";
 
 export async function resetDemoSeed(db: Database) {
   const existing = await db.select({ id: users.id }).from(users).where(eq(users.isDemo, true));
@@ -136,81 +130,6 @@ export async function resetDemoSeed(db: Database) {
     duplicateWindowHours: 48,
   });
 
-  const [amazonCase] = await db
-    .insert(cases)
-    .values({
-      userId: user.id,
-      kind: "return_window",
-      status: "ready",
-      merchantKey: "amazon.in",
-      amountMinor: 249900,
-      currency: "INR",
-      orderId: "404-2288193-7715200",
-      deadlineOn: "2026-11-26",
-      counterpartyEmail: amazonDraft.toAddress,
-      evidenceQuote: amazonQuote,
-      confidence: "1.000",
-      createdAt: new Date("2026-11-23T02:00:00.000Z"),
-      updatedAt: new Date("2026-11-23T02:00:00.000Z"),
-    })
-    .returning();
-
-  const [swiggyCase] = await db
-    .insert(cases)
-    .values({
-      userId: user.id,
-      kind: "duplicate_charge",
-      status: "ready",
-      merchantKey: "swiggy",
-      amountMinor: 48600,
-      currency: "INR",
-      orderId: "SW184423",
-      counterpartyEmail: swiggyDraft.toAddress,
-      evidenceQuote: swiggyQuote,
-      confidence: "1.000",
-      createdAt: new Date("2026-11-23T02:00:01.000Z"),
-      updatedAt: new Date("2026-11-23T02:00:01.000Z"),
-    })
-    .returning();
-
-  const [hotstarCase] = await db
-    .insert(cases)
-    .values({
-      userId: user.id,
-      kind: "renewal",
-      status: "ready",
-      merchantKey: "jiohotstar",
-      amountMinor: 149900,
-      currency: "INR",
-      deadlineOn: "2026-11-26",
-      counterpartyEmail: hotstarDraft.toAddress,
-      evidenceQuote: hotstarQuote,
-      confidence: "1.000",
-      createdAt: new Date("2026-11-23T02:00:02.000Z"),
-      updatedAt: new Date("2026-11-23T02:00:02.000Z"),
-    })
-    .returning();
-
-  const [lookalikeCase] = await db
-    .insert(cases)
-    .values({
-      userId: user.id,
-      kind: "return_window",
-      status: "refused",
-      merchantKey: "amazon.in",
-      amountMinor: 1500000,
-      currency: "INR",
-      orderId: null,
-      deadlineOn: null,
-      counterpartyEmail: "refunds@amazon-secure-claims.net",
-      evidenceQuote: lookalikeQuote,
-      confidence: "1.000",
-      refuseReason: LOOKALIKE_REASON,
-      createdAt: new Date("2026-11-23T02:00:03.000Z"),
-      updatedAt: new Date("2026-11-23T02:00:03.000Z"),
-    })
-    .returning();
-
   const [paperlaneCase] = await db
     .insert(cases)
     .values({
@@ -229,21 +148,24 @@ export async function resetDemoSeed(db: Database) {
     })
     .returning();
 
-  await db.insert(caseMessages).values([
-    { caseId: amazonCase.id, messageId: byExternalId.get("m1")!.id },
-    { caseId: swiggyCase.id, messageId: byExternalId.get("m2")!.id },
-    { caseId: swiggyCase.id, messageId: byExternalId.get("m3")!.id },
-    { caseId: hotstarCase.id, messageId: byExternalId.get("m4")!.id },
-    { caseId: lookalikeCase.id, messageId: byExternalId.get("m5")!.id },
-    { caseId: paperlaneCase.id, messageId: byExternalId.get("m6")!.id },
-  ]);
-
-  await db.insert(auditEvents).values({
-    userId: user.id,
-    caseId: lookalikeCase.id,
-    type: "refused",
-    payload: { reason: LOOKALIKE_REASON },
+  await db.insert(caseMessages).values({
+    caseId: paperlaneCase.id,
+    messageId: byExternalId.get("m6")!.id,
   });
+
+  await fileNewCandidates(db, user.id, mailbox.id);
+
+  const ready = await db
+    .select()
+    .from(cases)
+    .where(and(eq(cases.userId, user.id), eq(cases.status, "ready")));
+  const byMerchant = new Map(ready.map((row) => [row.merchantKey, row]));
+  const amazonCase = byMerchant.get("amazon.in");
+  const swiggyCase = byMerchant.get("swiggy");
+  const hotstarCase = byMerchant.get("jiohotstar");
+  if (!amazonCase || !swiggyCase || !hotstarCase) {
+    throw new Error("Rules pass did not file the three waiting cases.");
+  }
 
   await db.insert(drafts).values([
     {

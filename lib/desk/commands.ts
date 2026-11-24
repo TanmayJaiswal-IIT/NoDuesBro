@@ -209,7 +209,7 @@ export async function updateStandingOrders(patch: StandingOrdersPatch): Promise<
   if (patch.askBeforeSend === false) {
     return {
       ok: false,
-      reason: "Ask before every send stays on. Found will not send without your approval.",
+      reason: "Ask before every send stays on. NoDuesBro will not send without your approval.",
     };
   }
 

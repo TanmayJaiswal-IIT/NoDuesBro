@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Found",
+  title: "NoDuesBro",
   description: "A morning desk for money you can still save.",
 };
 
